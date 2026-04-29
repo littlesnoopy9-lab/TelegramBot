@@ -37,7 +37,7 @@ async def cmd_start(message: Message, state: FSMContext):
     
     text = """Привет 👋
 
-Помогаю создать Telegram / WhatsApp / AI бота для продаж, заявок и автоматизации бизнеса.
+Помогаю создать Telegram / WhatsApp бота для продаж, заявок и автоматизации бизнеса.
 
 За 1 минуту подберу лучшее решение под ваш запрос."""
     
@@ -67,14 +67,14 @@ async def menu_prices(callback: CallbackQuery, state: FSMContext):
         await callback.answer("Подождите!", show_alert=True)
         return
     
-    text = """🔹 Start — от 15.000₽
+    text = """🔹 Start — от 5.000₽
 Простой бот / лид-магнит / заявки
 
-🔹 Business — от 35.000₽
+🔹 Business — от 25.000₽
 Продажи / CRM / оплаты / автоматизация
 
 🔹 Premium — от 70.000₽
-AI / сложная логика / масштабирование"""
+AI / сложная логика """
     
     await callback.message.edit_text(text, reply_markup=kb.main_menuKeyboard())
     await callback.answer()
@@ -411,7 +411,7 @@ async def quiz_step6(callback: CallbackQuery, state: FSMContext):
     answers["when_launch"] = when_launch
     await state.update_data(answers=answers, step=7)
     
-    text = "Шаг 7 из 7\n\nКак связаться?"
+    text = "Шаг 7 из 7\n\nКак с Вами связаться?"
     await callback.message.edit_text(text, reply_markup=kb.quiz_step7_keyboard())
     await state.set_state(QuizStates.step7_contact)
     await callback.answer()
