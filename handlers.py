@@ -9,7 +9,7 @@ from aiogram.fsm.context import FSMContext
 import config
 import keyboards as kb
 import database as db
-from states import QuizStates
+from states import QuizStates, BookingState
 
 logger = logging.getLogger(__name__)
 
@@ -50,15 +50,12 @@ async def menu_cases(callback: CallbackQuery, state: FSMContext):
         await callback.answer("Подождите!", show_alert=True)
         return
     
-    text = """Примеры решений:
+    await state.clear()
+    text = """💼 Примеры решений:
 
-• Бот для записи клиентов
-• Лид-магнит бот для блогера
-• Бот с оплатой и каталогом
-• AI консультант
-• Автоворонка продаж"""
+Выберите кейс, чтобы посмотреть демо:"""
     
-    await callback.message.edit_text(text, reply_markup=kb.backKeyboard())
+    await callback.message.edit_text(text, reply_markup=kb.cases_keyboard())
     await callback.answer()
 
 
@@ -557,3 +554,205 @@ async def cmd_admin(message: Message, state: FSMContext):
 📅 Заявок сегодня: {today}"""
     
     await message.answer(text)
+
+
+
+# ----- Booking Demo (Case: Бот для записи клиентов) -----
+
+SERVICES = {
+    "manicure": "💅 Маникюр",
+    "pedicure": "🦶 Педикюр",
+    "complex": "✨ Комплекс (маникюр + педикюр)",
+}
+
+SERVICE_PRICES = {
+    "manicure": "1500 ₽",
+    "pedicure": "2000 ₽",
+    "complex": "3000 ₽",
+}
+
+
+async def case_booking(callback: CallbackQuery, state: FSMContext):
+    if check_spam(callback.from_user.id):
+        await callback.answer("Подождите!", show_alert=True)
+        return
+    
+    text = (
+        "📅 Бот для записи клиентов\n\n"
+        "Готовое решение для nail-мастеров, барбершопов и салонов красоты.\n\n"
+        "Функции:\n"
+        "• Выбор услуги 💅\n"
+        "• Выбор даты и времени 📆\n"
+        "• Подтверждение записи ✅\n"
+        "• Напоминания клиентам 🔔\n"
+        "• Админ-панель 📊\n\n"
+        "⬇ Нажмите «Записаться», чтобы попробовать демо:"
+    )
+    await callback.message.edit_text(text, reply_markup=kb.booking_menu_keyboard())
+    await callback.answer()
+
+
+async def bk_start(callback: CallbackQuery, state: FSMContext):
+    if check_spam(callback.from_user.id):
+        await callback.answer("Подождите!", show_alert=True)
+        return
+    
+    await state.set_state(BookingState.choosing_service)
+    text = "💅 Выберите услугу:"
+    await callback.message.edit_text(text, reply_markup=kb.booking_service_keyboard())
+    await callback.answer()
+
+
+async def bk_mine(callback: CallbackQuery, state: FSMContext):
+    if check_spam(callback.from_user.id):
+        await callback.answer("Подождите!", show_alert=True)
+        return
+    
+    rows = db.get_appointments_by_telegram_id(callback.from_user.id)
+    if not rows:
+        await callback.message.edit_text(
+            "📭 У вас пока нет записей.",
+            reply_markup=kb.booking_menu_keyboard(),
+        )
+        await callback.answer()
+        return
+    
+    lines = ["📋 Ваши записи:\n"]
+    for row in rows:
+        service_name = SERVICES.get(row["service"], row["service"])
+        lines.append(f"• {service_name}\n  {row['date']} в {row['time']} — {row['status']}")
+    await callback.message.edit_text(
+        "\n\n".join(lines),
+        reply_markup=kb.booking_menu_keyboard(),
+    )
+    await callback.answer()
+
+
+async def bk_service_chosen(callback: CallbackQuery, state: FSMContext):
+    if check_spam(callback.from_user.id):
+        await callback.answer("Подождите!", show_alert=True)
+        return
+    
+    service_key = callback.data.replace("bkservice_", "")
+    service_name = SERVICES.get(service_key)
+    if not service_name:
+        await callback.answer("Услуга не найдена")
+        return
+    
+    price = SERVICE_PRICES.get(service_key, "")
+    await state.update_data(service=service_key, service_name=service_name)
+    
+    text = f"Вы выбрали: {service_name}\n💰 {price}\n\n📅 Теперь выберите дату:"
+    await state.set_state(BookingState.choosing_date)
+    await callback.message.edit_text(text, reply_markup=kb.booking_date_keyboard())
+    await callback.answer()
+
+
+async def bk_date_chosen(callback: CallbackQuery, state: FSMContext):
+    if check_spam(callback.from_user.id):
+        await callback.answer("Подождите!", show_alert=True)
+        return
+    
+    date = callback.data.replace("bkdate_", "")
+    await state.update_data(date=date)
+    
+    text = f"📅 Дата: {date}\n\n⏰ Выберите время:"
+    await state.set_state(BookingState.choosing_time)
+    await callback.message.edit_text(text, reply_markup=kb.booking_time_keyboard())
+    await callback.answer()
+
+
+async def bk_time_chosen(callback: CallbackQuery, state: FSMContext):
+    if check_spam(callback.from_user.id):
+        await callback.answer("Подождите!", show_alert=True)
+        return
+    
+    time = callback.data.replace("bktime_", "")
+    await state.update_data(time=time)
+    
+    data = await state.get_data()
+    user = callback.from_user
+    client_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or user.username or "Клиент"
+    
+    text = (
+        "📋 Подтверждение записи:\n\n"
+        f"👤 {client_name}\n"
+        f"💅 {data['service_name']}\n"
+        f"📅 {data['date']}\n"
+        f"⏰ {time}\n"
+        f"💰 {SERVICE_PRICES.get(data['service'], '')}\n\n"
+        "Всё верно?"
+    )
+    await state.set_state(BookingState.confirming)
+    await callback.message.edit_text(text, reply_markup=kb.booking_confirm_keyboard())
+    await callback.answer()
+
+
+async def bk_confirm(callback: CallbackQuery, state: FSMContext):
+    if check_spam(callback.from_user.id):
+        await callback.answer("Подождите!", show_alert=True)
+        return
+    
+    data = await state.get_data()
+    user = callback.from_user
+    client_name = f"{user.first_name or ''} {user.last_name or ''}".strip() or user.username or "Клиент"
+    
+    appointment_id = db.add_appointment(
+        telegram_id=user.id,
+        client_name=client_name,
+        service=data["service"],
+        date=data["date"],
+        time=data["time"],
+    )
+    
+    text = (
+        "✅ Запись подтверждена!\n\n"
+        f"👤 {client_name}\n"
+        f"💅 {data['service_name']}\n"
+        f"📅 {data['date']}\n"
+        f"⏰ {data['time']}\n\n"
+        "🔔 Я напомню о записи за 24 часа и за 2 часа."
+    )
+    await callback.message.edit_text(text, reply_markup=kb.booking_menu_keyboard())
+    await state.clear()
+    await callback.answer()
+
+
+async def bk_cancel(callback: CallbackQuery, state: FSMContext):
+    if check_spam(callback.from_user.id):
+        await callback.answer("Подождите!", show_alert=True)
+        return
+    
+    await state.clear()
+    text = "❌ Запись отменена."
+    await callback.message.edit_text(text, reply_markup=kb.booking_menu_keyboard())
+    await callback.answer()
+
+
+async def bk_back(callback: CallbackQuery, state: FSMContext):
+    if check_spam(callback.from_user.id):
+        await callback.answer("Подождите!", show_alert=True)
+        return
+    
+    current_state = await state.get_state()
+    
+    if current_state == BookingState.choosing_service:
+        await case_booking(callback, state)
+        await callback.answer()
+        return
+    
+    data = await state.get_data()
+    if current_state == BookingState.choosing_date:
+        await state.set_state(BookingState.choosing_service)
+        await callback.message.edit_text("💅 Выберите услугу:", reply_markup=kb.booking_service_keyboard())
+    elif current_state == BookingState.choosing_time:
+        await state.set_state(BookingState.choosing_date)
+        await callback.message.edit_text("📅 Выберите дату:", reply_markup=kb.booking_date_keyboard())
+    elif current_state == BookingState.confirming:
+        await state.set_state(BookingState.choosing_time)
+        date = data.get("date", "")
+        await callback.message.edit_text(f"📅 Дата: {date}\n\n⏰ Выберите время:", reply_markup=kb.booking_time_keyboard())
+    else:
+        await case_booking(callback, state)
+    
+    await callback.answer()

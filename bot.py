@@ -11,9 +11,11 @@ import handlers as h
 from keyboards import (
     quiz_step1_keyboard, quiz_step2_keyboard, quiz_step3_keyboard,
     quiz_step4_keyboard, quiz_step5_keyboard, quiz_step6_keyboard, quiz_step7_keyboard,
-    main_menuKeyboard, backKeyboard, after_quiz_keyboard
+    main_menuKeyboard, backKeyboard, after_quiz_keyboard,
+    booking_service_keyboard, booking_date_keyboard, booking_time_keyboard,
+    booking_confirm_keyboard, booking_menu_keyboard,
 )
-from states import QuizStates
+from states import QuizStates, BookingState
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -64,9 +66,21 @@ def register_handlers():
     dp.callback_query.register(h.quiz_step7, lambda c: c.data and c.data.startswith("quiz_contact_"))
     dp.message.register(h.quiz_step7_text, QuizStates.step7_contact)
 
+    # Booking case handlers
+    dp.callback_query.register(h.case_booking, lambda c: c.data == "case_booking")
+    dp.callback_query.register(h.bk_start, lambda c: c.data == "bk_start")
+    dp.callback_query.register(h.bk_mine, lambda c: c.data == "bk_mine")
+    dp.callback_query.register(h.bk_service_chosen, lambda c: c.data and c.data.startswith("bkservice_"))
+    dp.callback_query.register(h.bk_date_chosen, lambda c: c.data and c.data.startswith("bkdate_"))
+    dp.callback_query.register(h.bk_time_chosen, lambda c: c.data and c.data.startswith("bktime_"))
+    dp.callback_query.register(h.bk_confirm, lambda c: c.data == "bk_confirm")
+    dp.callback_query.register(h.bk_cancel, lambda c: c.data == "bk_cancel")
+    dp.callback_query.register(h.bk_back, lambda c: c.data == "bk_back")
+
 
 async def on_startup(dispatcher: Dispatcher):
     db.init_db()
+    db.init_booking_db()
     logger.info("Bot started and database initialized!")
 
 

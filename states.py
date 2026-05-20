@@ -19,3 +19,11 @@ class QuizStates(StatesGroup):
 # Multiple choice states for step 4
 class FuncChoiceStates(StatesGroup):
     selecting = State()
+
+
+# Booking demo states
+class BookingState(StatesGroup):
+    choosing_service = State()
+    choosing_date = State()
+    choosing_time = State()
+    confirming = State()

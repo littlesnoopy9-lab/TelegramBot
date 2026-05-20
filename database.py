@@ -111,3 +111,55 @@ def get_today_application_count() -> int:
     count = cur.fetchone()[0]
     conn.close()
     return count
+
+
+def init_booking_db():
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS appointments (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            telegram_id INTEGER NOT NULL,
+            client_name TEXT    NOT NULL,
+            service     TEXT    NOT NULL,
+            date        TEXT    NOT NULL,
+            time        TEXT    NOT NULL,
+            status      TEXT    NOT NULL DEFAULT 'confirmed'
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+
+def add_appointment(telegram_id: int, client_name: str, service: str, date: str, time: str) -> int:
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO appointments (telegram_id, client_name, service, date, time) VALUES (?, ?, ?, ?, ?)",
+        (telegram_id, client_name, service, date, time),
+    )
+    conn.commit()
+    appointment_id = cur.lastrowid
+    conn.close()
+    return appointment_id
+
+
+def get_appointments_by_telegram_id(telegram_id: int) -> list:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    rows = cur.execute(
+        "SELECT * FROM appointments WHERE telegram_id = ? ORDER BY date DESC, time DESC",
+        (telegram_id,),
+    ).fetchall()
+    conn.close()
+    return rows
+
+
+def get_all_appointments() -> list:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    rows = cur.execute("SELECT * FROM appointments ORDER BY date DESC, time DESC").fetchall()
+    conn.close()
+    return rows

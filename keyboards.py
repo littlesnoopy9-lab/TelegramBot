@@ -127,3 +127,65 @@ def after_quiz_keyboard():
             [InlineKeyboardButton(text="🚀 Новая заявка", callback_data="menu_quiz")]
         ]
     )
+
+
+# ----- Booking (Case: Бот для записи клиентов) -----
+
+def cases_keyboard():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="📅 Бот для записи клиентов", callback_data="case_booking")],
+            [InlineKeyboardButton(text="🔙 Назад", callback_data="menu_back")]
+        ]
+    )
+
+
+def booking_service_keyboard():
+    buttons = [
+        [InlineKeyboardButton(text="💅 Маникюр", callback_data="bkservice_manicure")],
+        [InlineKeyboardButton(text="🦶 Педикюр", callback_data="bkservice_pedicure")],
+        [InlineKeyboardButton(text="✨ Комплекс (маникюр + педикюр)", callback_data="bkservice_complex")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="bk_back")],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def booking_date_keyboard():
+    from datetime import datetime, timedelta
+    today = datetime.now()
+    dates = [(today + timedelta(days=i)).strftime("%d.%m.%Y") for i in range(1, 6)]
+    buttons = [
+        [InlineKeyboardButton(text=date, callback_data=f"bkdate_{date}")]
+        for date in dates
+    ]
+    buttons.append([InlineKeyboardButton(text="🔙 Назад", callback_data="bk_back")])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def booking_time_keyboard():
+    slots = ["10:00", "12:00", "14:00", "16:00", "18:00"]
+    buttons = [
+        [InlineKeyboardButton(text=slot, callback_data=f"bktime_{slot}")]
+        for slot in slots
+    ]
+    buttons.append([InlineKeyboardButton(text="🔙 Назад", callback_data="bk_back")])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def booking_confirm_keyboard():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Подтвердить", callback_data="bk_confirm")],
+            [InlineKeyboardButton(text="❌ Отменить", callback_data="bk_cancel")],
+        ]
+    )
+
+
+def booking_menu_keyboard():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="📅 Записаться", callback_data="bk_start")],
+            [InlineKeyboardButton(text="📋 Мои записи", callback_data="bk_mine")],
+            [InlineKeyboardButton(text="🔙 В кейсы", callback_data="menu_cases")],
+        ]
+    )
