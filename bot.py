@@ -1,96 +1,44 @@
 import asyncio
 import logging
+
 from aiogram import Bot, Dispatcher
-from aiogram.filters import Command
-from aiogram.types import Message, CallbackQuery
-from aiogram.fsm.context import FSMContext
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
 
-import config
-import database as db
-import handlers as h
-from keyboards import (
-    quiz_step1_keyboard, quiz_step2_keyboard, quiz_step3_keyboard,
-    quiz_step4_keyboard, quiz_step5_keyboard, quiz_step6_keyboard, quiz_step7_keyboard,
-    main_menuKeyboard, backKeyboard, after_quiz_keyboard,
-    booking_service_keyboard, booking_date_keyboard, booking_time_keyboard,
-    booking_confirm_keyboard, booking_menu_keyboard,
+from config import BOT_TOKEN
+from handlers.main_menu import main_router
+from handlers.cases import cases_router
+from handlers.order import order_router
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
-from states import QuizStates, BookingState
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
-bot = Bot(token=config.TOKEN)
-dp = Dispatcher()
-
-
-def register_handlers():
-    # Main commands
-    dp.message.register(h.cmd_start, Command(commands=["start"]))
-    dp.message.register(h.cmd_admin, Command(commands=["admin"]))
-    
-    # Menu callbacks
-    dp.callback_query.register(h.menu_cases, lambda c: c.data == "menu_cases")
-    dp.callback_query.register(h.menu_prices, lambda c: c.data == "menu_prices")
-    dp.callback_query.register(h.menu_contact, lambda c: c.data == "menu_contact")
-    dp.callback_query.register(h.menu_back, lambda c: c.data == "menu_back")
-    
-    # Quiz start
-    dp.callback_query.register(h.quiz_start, lambda c: c.data == "menu_quiz")
-    
-    # Quiz step 1 - Who
-    dp.callback_query.register(h.quiz_step1, lambda c: c.data and c.data.startswith("quiz_who_"))
-    dp.message.register(h.quiz_step1_text, QuizStates.step1_who)
-    
-    # Quiz step 2 - What wants (multiple)
-    dp.callback_query.register(h.quiz_step2, lambda c: c.data and c.data.startswith("quiz_what_"))
-    dp.message.register(h.quiz_step2_text, QuizStates.step2_what)
-    
-    # Quiz step 3 - Platform
-    dp.callback_query.register(h.quiz_step3, lambda c: c.data and c.data.startswith("quiz_platform_"))
-    dp.message.register(h.quiz_step3_text, QuizStates.step3_where)
-    
-    # Quiz step 4 - Functions (multiple)
-    dp.callback_query.register(h.quiz_step4, lambda c: c.data and c.data.startswith("quiz_func_"))
-    dp.message.register(h.quiz_step4_text, QuizStates.step4_funcs)
-    
-    # Quiz step 5 - Budget
-    dp.callback_query.register(h.quiz_step5, lambda c: c.data and c.data.startswith("quiz_budget_"))
-    dp.message.register(h.quiz_step5_text, QuizStates.step5_budget)
-    
-    # Quiz step 6 - When
-    dp.callback_query.register(h.quiz_step6, lambda c: c.data and c.data.startswith("quiz_when_"))
-    dp.message.register(h.quiz_step6_text, QuizStates.step6_when)
-    
-    # Quiz step 7 - Contact
-    dp.callback_query.register(h.quiz_step7, lambda c: c.data and c.data.startswith("quiz_contact_"))
-    dp.message.register(h.quiz_step7_text, QuizStates.step7_contact)
-
-    # Booking case handlers
-    dp.callback_query.register(h.case_booking, lambda c: c.data == "case_booking")
-    dp.callback_query.register(h.bk_start, lambda c: c.data == "bk_start")
-    dp.callback_query.register(h.bk_mine, lambda c: c.data == "bk_mine")
-    dp.callback_query.register(h.bk_service_chosen, lambda c: c.data and c.data.startswith("bkservice_"))
-    dp.callback_query.register(h.bk_date_chosen, lambda c: c.data and c.data.startswith("bkdate_"))
-    dp.callback_query.register(h.bk_time_chosen, lambda c: c.data and c.data.startswith("bktime_"))
-    dp.callback_query.register(h.bk_confirm, lambda c: c.data == "bk_confirm")
-    dp.callback_query.register(h.bk_cancel, lambda c: c.data == "bk_cancel")
-    dp.callback_query.register(h.bk_back, lambda c: c.data == "bk_back")
-
-
-async def on_startup(dispatcher: Dispatcher):
-    db.init_db()
-    db.init_booking_db()
-    logger.info("Bot started and database initialized!")
 
 
 async def main():
-    dp.startup.register(on_startup)
-    register_handlers()
-    await bot.delete_webhook(drop_pending_updates=True)
-    await dp.start_polling(bot)
+    if not BOT_TOKEN:
+        logging.error("BOT_TOKEN is not set in .env file")
+        return
+
+    bot = Bot(
+        token=BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+    )
+
+    dp = Dispatcher()
+    dp.include_routers(main_router, cases_router, order_router)
+
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+        logging.info("Starting polling...")
+        await dp.start_polling(bot)
+    except Exception as e:
+        logging.error(f"Error during polling: {e}")
+    finally:
+        await bot.session.close()
 
 
 if __name__ == "__main__":
-    print("Bot starting...")
     asyncio.run(main())
